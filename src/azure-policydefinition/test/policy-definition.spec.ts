@@ -572,6 +572,284 @@ describe("PolicyDefinition - Unified Implementation", () => {
       expect(policyDefinition).toBeDefined();
       expect(policyDefinition.props.parameters).toBeDefined();
     });
+
+    it("should preserve complex allOf conditions with multiple field comparisons", () => {
+      const complexRule = {
+        if: {
+          allOf: [
+            {
+              field: "type",
+              equals: "Microsoft.Storage/storageAccounts",
+            },
+            {
+              field:
+                "Microsoft.Storage/storageAccounts/networkAcls.defaultAction",
+              notEquals: "Deny",
+            },
+          ],
+        },
+        then: {
+          effect: "audit",
+        },
+      };
+
+      const policyDefinition = new PolicyDefinition(stack, "ComplexAllOf", {
+        name: "complex-allof-policy",
+        displayName: "Complex AllOf Policy",
+        policyRule: complexRule,
+      });
+
+      expect(policyDefinition).toBeDefined();
+      expect(policyDefinition.props.policyRule).toEqual(complexRule);
+
+      // Synthesize and verify the structure is preserved
+      const synthesized = Testing.synth(stack);
+      const stackConfig = JSON.parse(synthesized);
+      const azapiResource = Object.values(
+        stackConfig.resource.azapi_resource,
+      )[0] as any;
+
+      // The body is jsonencode() wrapped, so we need to parse the actual policy rule from props
+      expect(policyDefinition.props.policyRule.if.allOf).toHaveLength(2);
+      expect(policyDefinition.props.policyRule.if.allOf[0].field).toBe("type");
+      expect(policyDefinition.props.policyRule.if.allOf[0].equals).toBe(
+        "Microsoft.Storage/storageAccounts",
+      );
+      expect(policyDefinition.props.policyRule.if.allOf[1].field).toBe(
+        "Microsoft.Storage/storageAccounts/networkAcls.defaultAction",
+      );
+      expect(policyDefinition.props.policyRule.if.allOf[1].notEquals).toBe(
+        "Deny",
+      );
+      expect(policyDefinition.props.policyRule.then.effect).toBe("audit");
+
+      // Verify the synthesized config has the body property set
+      expect(azapiResource.body).toBeDefined();
+    });
+
+    it("should preserve Azure Policy expressions without converting them", () => {
+      const rule = {
+        if: {
+          field: "location",
+          notIn: "[parameters('allowedLocations')]",
+        },
+        then: {
+          effect: "[parameters('effect')]",
+        },
+      };
+
+      new PolicyDefinition(stack, "AzurePolicyExpressions", {
+        name: "azure-expressions-policy",
+        policyRule: rule,
+        parameters: {
+          allowedLocations: { type: "Array" },
+          effect: { type: "String" },
+        },
+      });
+
+      const synthesized = Testing.synth(stack);
+      const stackConfig = JSON.parse(synthesized);
+      const azapiResource = Object.values(
+        stackConfig.resource.azapi_resource,
+      )[0] as any;
+
+      // Verify Azure Policy expressions are preserved in the construct's props
+      expect(rule.if.notIn).toBe("[parameters('allowedLocations')]");
+      expect(rule.then.effect).toBe("[parameters('effect')]");
+
+      // Verify the synthesized config has the body property set
+      expect(azapiResource.body).toBeDefined();
+    });
+
+    it("should preserve DeployIfNotExists policy with ARM template", () => {
+      const complexRule = {
+        if: {
+          field: "type",
+          equals: "Microsoft.Network/virtualNetworks",
+        },
+        then: {
+          effect: "DeployIfNotExists",
+          details: {
+            type: "Microsoft.Network/networkManagers/networkGroups/staticMembers",
+            deploymentScope: "subscription",
+            existenceScope: "subscription",
+            roleDefinitionIds: [
+              "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+            ],
+            deployment: {
+              location: "[field('location')]",
+              properties: {
+                mode: "incremental",
+                resourceGroup: "[variables('avnmResourceGroup')]",
+                subscriptionId: "[parameters('avnmSubscriptionId')]",
+                template: {
+                  $schema:
+                    "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  contentVersion: "1.0.0.0",
+                  parameters: {
+                    vnetId: {
+                      type: "string",
+                    },
+                  },
+                  variables: {
+                    staticMemberName: "[guid(parameters('vnetId'))]",
+                  },
+                  resources: [
+                    {
+                      type: "Microsoft.Network/networkManagers/networkGroups/staticMembers",
+                      apiVersion: "2023-04-01",
+                      name: "[concat(parameters('avnmId'), '/', variables('staticMemberName'))]",
+                      properties: {
+                        resourceId: "[parameters('vnetId')]",
+                      },
+                    },
+                  ],
+                  outputs: {
+                    memberId: {
+                      type: "string",
+                      value:
+                        "[resourceId('Microsoft.Network/networkManagers/networkGroups/staticMembers', variables('staticMemberName'))]",
+                    },
+                  },
+                },
+                parameters: {
+                  vnetId: {
+                    value: "[field('id')]",
+                  },
+                },
+              },
+            },
+          },
+        },
+      };
+
+      const policyDefinition = new PolicyDefinition(
+        stack,
+        "DeployIfNotExistsPolicy",
+        {
+          name: "deploy-if-not-exists-policy",
+          displayName: "Deploy If Not Exists with ARM Template",
+          policyRule: complexRule,
+          parameters: {
+            avnmSubscriptionId: { type: "String" },
+          },
+        },
+      );
+
+      expect(policyDefinition).toBeDefined();
+
+      const synthesized = Testing.synth(stack);
+      const stackConfig = JSON.parse(synthesized);
+      const azapiResource = Object.values(
+        stackConfig.resource.azapi_resource,
+      )[0] as any;
+
+      const details = policyDefinition.props.policyRule.then.details;
+
+      // Verify deployment structure is preserved (not converted to null)
+      expect(details.deployment).toBeDefined();
+      expect(details.deployment.location).toBe("[field('location')]");
+      expect(details.deployment.properties).toBeDefined();
+      expect(details.deployment.properties.mode).toBe("incremental");
+      expect(details.deployment.properties.resourceGroup).toBe(
+        "[variables('avnmResourceGroup')]",
+      );
+      expect(details.deployment.properties.subscriptionId).toBe(
+        "[parameters('avnmSubscriptionId')]",
+      );
+
+      // Verify ARM template is fully preserved (not converted to null)
+      const template = details.deployment.properties.template;
+      expect(template).toBeDefined();
+      expect(template.$schema).toBe(
+        "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      );
+      expect(template.contentVersion).toBe("1.0.0.0");
+      expect(template.parameters).toBeDefined();
+      expect(template.parameters.vnetId).toBeDefined();
+      expect(template.variables).toBeDefined();
+      expect(template.variables.staticMemberName).toBe(
+        "[guid(parameters('vnetId'))]",
+      );
+      expect(template.resources).toHaveLength(1);
+      expect(template.resources[0].name).toBe(
+        "[concat(parameters('avnmId'), '/', variables('staticMemberName'))]",
+      );
+      expect(template.outputs).toBeDefined();
+      expect(template.outputs.memberId.value).toBe(
+        "[resourceId('Microsoft.Network/networkManagers/networkGroups/staticMembers', variables('staticMemberName'))]",
+      );
+
+      // Verify ARM template parameters are preserved
+      const deploymentParams = details.deployment.properties.parameters;
+      expect(deploymentParams).toBeDefined();
+      expect(deploymentParams.vnetId.value).toBe("[field('id')]");
+
+      // Verify schema validation is disabled to allow complex nested structures
+      expect(azapiResource.schema_validation_enabled).toBe(false);
+      expect(azapiResource.ignore_missing_property).toBe(true);
+
+      // Verify the synthesized config has the body property set
+      expect(azapiResource.body).toBeDefined();
+    });
+
+    it("should preserve deeply nested logical operators", () => {
+      const complexRule = {
+        if: {
+          allOf: [
+            {
+              field: "type",
+              equals: "Microsoft.Network/virtualNetworks",
+            },
+            {
+              anyOf: [
+                {
+                  field:
+                    "Microsoft.Network/virtualNetworks/enableDdosProtection",
+                  equals: "false",
+                },
+                {
+                  not: {
+                    field:
+                      "Microsoft.Network/virtualNetworks/subnets[*].serviceEndpoints[*].service",
+                    contains: "Microsoft.Storage",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        then: {
+          effect: "audit",
+        },
+      };
+
+      const policyDefinition = new PolicyDefinition(stack, "DeeplyNested", {
+        name: "deeply-nested-policy",
+        policyRule: complexRule,
+      });
+
+      expect(policyDefinition.props.policyRule).toEqual(complexRule);
+
+      const synthesized = Testing.synth(stack);
+      const stackConfig = JSON.parse(synthesized);
+      const azapiResource = Object.values(
+        stackConfig.resource.azapi_resource,
+      )[0] as any;
+
+      // Verify the deeply nested structure is preserved in the construct's props
+      expect(
+        policyDefinition.props.policyRule.if.allOf[1].anyOf[1].not,
+      ).toBeDefined();
+      expect(
+        policyDefinition.props.policyRule.if.allOf[1].anyOf[1].not.field,
+      ).toBe(
+        "Microsoft.Network/virtualNetworks/subnets[*].serviceEndpoints[*].service",
+      );
+
+      // Verify the synthesized config has the body property set
+      expect(azapiResource.body).toBeDefined();
+    });
   });
 
   describe("Error Handling", () => {

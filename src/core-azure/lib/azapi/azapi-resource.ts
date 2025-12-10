@@ -450,9 +450,20 @@ export abstract class AzapiResource extends Construct {
     );
     this.apiVersion = this.resolvedApiVersion;
 
-    // Step 3.5: Initialize tags from props
+    // Step 3.5: Initialize tags from props only if this resource type supports tags
     // This creates a mutable copy separate from the readonly props
-    this._tags = { ...(props.tags || {}) };
+    // Some resources like Policy Definitions don't support tags
+    if (this.supportsTags()) {
+      this._tags = { ...(props.tags || {}) };
+    } else {
+      this._tags = {};
+      // Warn if user tried to set tags on a resource that doesn't support them
+      if (props.tags && Object.keys(props.tags).length > 0) {
+        console.warn(
+          `Warning: Tags were specified for ${this.resourceType()} but this resource type does not support tags. Tags will be ignored.`,
+        );
+      }
+    }
 
     // Step 4: Load the schema and version configuration using the version manager
     this.schema = this._versionManager.schemaForVersion(
@@ -574,6 +585,15 @@ export abstract class AzapiResource extends Construct {
    */
   protected parentResourceForLocation(): AzapiResource | undefined {
     return undefined;
+  }
+
+  /**
+   * Override in child classes to indicate if the resource type supports tags
+   * Some Azure resources (e.g., Policy Definitions, Policy Assignments) do not support tags
+   * @returns true if the resource supports tags (default), false otherwise
+   */
+  protected supportsTags(): boolean {
+    return true;
   }
 
   /**
@@ -1022,6 +1042,31 @@ export abstract class AzapiResource extends Construct {
   // =============================================================================
 
   /**
+   * Allows child classes to customize the ResourceConfig before resource creation
+   *
+   * Override this method to add resource-specific configuration like:
+   * - schemaValidationEnabled: false (for resources with complex nested structures)
+   * - ignoreMissingProperty: true (for resources with dynamic/unknown properties)
+   * - ignoreNullProperty: true (for resources that should skip null values)
+   *
+   * @param config - The base ResourceConfig that will be used to create the resource
+   * @returns The potentially modified ResourceConfig
+   *
+   * @example
+   * protected customizeResourceConfig(config: ResourceConfig): ResourceConfig {
+   *   return {
+   *     ...config,
+   *     schemaValidationEnabled: false,
+   *     ignoreMissingProperty: true,
+   *   };
+   * }
+   */
+  protected customizeResourceConfig(config: any): any {
+    // Default implementation: no customization
+    return config;
+  }
+
+  /**
    * Creates the underlying AZAPI Terraform resource using the generated provider classes
    *
    * @param properties - The properties object to send to the Azure API (should include location if needed)
@@ -1074,19 +1119,24 @@ export abstract class AzapiResource extends Construct {
       combinedDependsOn.push(parentResource.terraformResource);
     }
 
-    const config: ResourceConfig = {
+    // Build the base configuration
+    let config: ResourceConfig = {
       type: `${this._resourceType}@${this.apiVersion}`,
       name: name,
       parentId: parentId,
       body: bodyWithoutTags,
       ...(!isChildResource && location && !properties.location && { location }),
-      // Add tags at the top level if they exist
-      // Tags are passed as a separate parameter and added here to ensure they're in the
-      // initial Terraform configuration, providing proper idempotency
-      ...(tags && Object.keys(tags).length > 0 && { tags }),
+      // Add tags at the top level only if this resource type supports tags
+      // Some resources like Policy Definitions don't support tags
+      ...(this.supportsTags() &&
+        tags &&
+        Object.keys(tags).length > 0 && { tags }),
       // Add depends_on for explicit dependencies and parent resource
       ...(combinedDependsOn.length > 0 && { dependsOn: combinedDependsOn }),
     };
+
+    // Allow child classes to customize the configuration
+    config = this.customizeResourceConfig(config);
 
     // Create the AZAPI resource using the generated provider class
     return new Resource(this, "resource", config);
@@ -1180,8 +1230,14 @@ export abstract class AzapiResource extends Construct {
    *
    * @param key - The tag key
    * @param value - The tag value
+   * @throws Error if the resource type does not support tags
    */
   public addTag(key: string, value: string): void {
+    if (!this.supportsTags()) {
+      throw new Error(
+        `Cannot add tags to ${this.resourceType()}: this resource type does not support tags`,
+      );
+    }
     this._tags[key] = value;
   }
 

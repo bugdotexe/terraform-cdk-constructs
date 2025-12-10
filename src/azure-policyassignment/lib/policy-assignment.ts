@@ -395,6 +395,16 @@ export class PolicyAssignment extends AzapiResource {
   }
 
   /**
+   * Policy Assignments do not support tags at the resource level
+   * Tags are not a valid property for Microsoft.Authorization/policyAssignments
+   * @returns false - Policy Assignments cannot have tags
+   * @override
+   */
+  protected supportsTags(): boolean {
+    return false;
+  }
+
+  /**
    * Creates the resource body for the Azure API call
    * Transforms the input properties into the JSON format expected by Azure REST API
    *

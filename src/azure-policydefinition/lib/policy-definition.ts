@@ -322,10 +322,49 @@ export class PolicyDefinition extends AzapiResource {
         description: typedProps.description,
         policyType: typedProps.policyType || "Custom",
         mode: typedProps.mode || "All",
-        policyRule: typedProps.policyRule,
+        // Deep clone policyRule to preserve all nested objects and Azure Policy expressions
+        // This ensures complex DeployIfNotExists policies with ARM templates are fully serialized
+        // Azure Policy expressions like [field()], [parameters()], [variables()] are preserved
+        policyRule: JSON.parse(JSON.stringify(typedProps.policyRule)),
         parameters: typedProps.parameters,
         metadata: typedProps.metadata,
       },
+    };
+  }
+
+  /**
+   * Policy Definitions do not support tags at the resource level
+   * Tags are not a valid property for Microsoft.Authorization/policyDefinitions
+   * @returns false - Policy Definitions cannot have tags
+   * @override
+   */
+  protected supportsTags(): boolean {
+    return false;
+  }
+
+  /**
+   * Customizes the AZAPI ResourceConfig for policy-specific requirements
+   *
+   * Policy definitions require special handling because:
+   * 1. They contain complex nested objects (ARM templates in DeployIfNotExists policies)
+   * 2. They use Azure Policy expressions like [field()], [parameters()], [variables()]
+   *    which are NOT Terraform interpolations but Azure-native expressions
+   * 3. Schema validation may strip unknown properties from deeply nested structures
+   *
+   * @param config - The base ResourceConfig
+   * @returns Modified ResourceConfig with policy-specific settings
+   * @override
+   */
+  protected customizeResourceConfig(config: any): any {
+    return {
+      ...config,
+      // Disable schema validation to preserve all nested properties
+      // Azure Policy definitions can contain deeply nested ARM templates and expressions
+      // that the AZAPI provider's schema validation may not recognize
+      schemaValidationEnabled: false,
+      // Allow properties not in the schema to prevent stripping of nested content
+      // This is essential for DeployIfNotExists policies with ARM template deployments
+      ignoreMissingProperty: true,
     };
   }
 
