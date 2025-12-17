@@ -13,6 +13,7 @@ import {
   ConnectivityConfiguration,
   ConnectivityConfigurationProps,
 } from "../lib/connectivity-configuration";
+import { IpamPool } from "../lib/ipam-pool";
 import { NetworkGroup, NetworkGroupProps } from "../lib/network-group";
 import {
   NetworkGroupStaticMember,
@@ -785,6 +786,123 @@ describe("VirtualNetworkManager", () => {
       expect(securityConfig).toBeInstanceOf(SecurityAdminConfiguration);
       expect(securityConfig.props.networkManagerId).toBe(manager.id);
       expect(securityConfig.props.name).toBe("production-security");
+    });
+  });
+
+  describe("IPAM Pool Convenience Methods", () => {
+    let manager: VirtualNetworkManager;
+
+    beforeEach(() => {
+      manager = new VirtualNetworkManager(stack, "TestManager", {
+        name: "test-manager",
+        location: "eastus",
+        resourceGroupId:
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/test-rg",
+        networkManagerScopes: {
+          subscriptions: [
+            "/subscriptions/00000000-0000-0000-0000-000000000000",
+          ],
+        },
+        networkManagerScopeAccesses: ["Connectivity"],
+      });
+    });
+
+    it("should create IpamPool using convenience method", () => {
+      const pool = manager.addIpamPool("prod-pool", {
+        name: "production-pool",
+        location: "eastus",
+        addressPrefixes: ["10.0.0.0/8"],
+        description: "Production IP pool",
+      });
+
+      expect(pool).toBeInstanceOf(IpamPool);
+      expect(pool.props.networkManagerId).toBe(manager.id);
+      expect(pool.props.name).toBe("production-pool");
+      expect(pool.props.addressPrefixes).toEqual(["10.0.0.0/8"]);
+      expect(pool.props.description).toBe("Production IP pool");
+    });
+
+    it("should create IpamPool with all properties using convenience method", () => {
+      const pool = manager.addIpamPool("regional-pool", {
+        name: "eastus-pool",
+        location: "eastus",
+        addressPrefixes: ["10.1.0.0/16", "10.2.0.0/16"],
+        description: "East US regional pool",
+        displayName: "East US Production Pool",
+        parentPoolName: "production-pool",
+        tags: {
+          region: "eastus",
+          environment: "production",
+        },
+      });
+
+      expect(pool).toBeInstanceOf(IpamPool);
+      expect(pool.props.networkManagerId).toBe(manager.id);
+      expect(pool.props.name).toBe("eastus-pool");
+      expect(pool.props.addressPrefixes).toEqual([
+        "10.1.0.0/16",
+        "10.2.0.0/16",
+      ]);
+      expect(pool.props.description).toBe("East US regional pool");
+      expect(pool.props.displayName).toBe("East US Production Pool");
+      expect(pool.props.parentPoolName).toBe("production-pool");
+      expect(pool.props.tags).toEqual({
+        region: "eastus",
+        environment: "production",
+      });
+    });
+
+    it("should create IpamPool with ignoreChanges using convenience method", () => {
+      const pool = manager.addIpamPool("managed-pool", {
+        name: "externally-managed-pool",
+        location: "westus",
+        addressPrefixes: ["172.16.0.0/12"],
+        ignoreChanges: ["tags", "description"],
+      });
+
+      expect(pool).toBeInstanceOf(IpamPool);
+      expect(pool.props.ignoreChanges).toEqual(["tags", "description"]);
+    });
+
+    it("should create hierarchical IpamPools using convenience method", () => {
+      const rootPool = manager.addIpamPool("root-pool", {
+        name: "root-pool",
+        location: "eastus",
+        addressPrefixes: ["10.0.0.0/8"],
+        description: "Root IP pool",
+      });
+
+      const childPool = manager.addIpamPool("child-pool", {
+        name: "child-pool",
+        location: "eastus",
+        addressPrefixes: ["10.1.0.0/16"],
+        parentPoolName: rootPool.props.name,
+        description: "Child IP pool",
+      });
+
+      expect(rootPool).toBeInstanceOf(IpamPool);
+      expect(childPool).toBeInstanceOf(IpamPool);
+      expect(childPool.props.parentPoolName).toBe(rootPool.props.name);
+    });
+
+    it("should validate CIDR prefixes when creating pool via convenience method", () => {
+      expect(() => {
+        manager.addIpamPool("invalid-pool", {
+          name: "invalid-pool",
+          location: "eastus",
+          addressPrefixes: ["invalid-cidr"],
+        });
+      }).toThrow();
+    });
+
+    it("should detect overlapping CIDR prefixes when creating pool via convenience method", () => {
+      expect(() => {
+        manager.addIpamPool("overlapping-pool", {
+          name: "overlapping-pool",
+          location: "eastus",
+          addressPrefixes: ["10.0.0.0/16", "10.0.1.0/24"],
+        });
+      }).toThrow();
     });
   });
 });

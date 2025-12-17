@@ -1,5 +1,9 @@
 export * from "./connectivity-configuration-schemas";
 export * from "./connectivity-configuration";
+export * from "./ipam-pool-schemas";
+export * from "./ipam-pool";
+export * from "./ipam-pool-static-cidr-schemas";
+export * from "./ipam-pool-static-cidr";
 export * from "./network-group-schemas";
 export * from "./network-group-static-member-schemas";
 export * from "./network-group-static-member";
@@ -10,5 +14,6 @@ export * from "./security-admin-rule-collection-schemas";
 export * from "./security-admin-rule-collection";
 export * from "./security-admin-rule-schemas";
 export * from "./security-admin-rule";
+export * from "./utils/cidr-validator";
 export * from "./virtual-network-manager-schemas";
 export * from "./virtual-network-manager";

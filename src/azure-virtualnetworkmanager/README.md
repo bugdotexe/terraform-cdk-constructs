@@ -22,6 +22,15 @@ Azure Virtual Network Manager (AVNM) is a centralized network management service
   - [SecurityAdminRuleCollection](#securityadminrulecollection)
   - [SecurityAdminRule](#securityadminrule)
 - [Child Resources](#child-resources)
+- [IPAM (IP Address Management)](#ipam-ip-address-management)
+  - [Features](#features-1)
+  - [Basic Usage](#basic-usage-1)
+  - [CIDR Validation Utilities](#cidr-validation-utilities)
+  - [Regional Limitations](#regional-limitations)
+  - [Best Practices](#best-practices-1)
+  - [Complete IPAM Example](#complete-ipam-example)
+  - [API Reference](#api-reference-1)
+  - [Troubleshooting](#troubleshooting-1)
 - [Complete End-to-End Example](#complete-end-to-end-example)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
@@ -52,13 +61,16 @@ Azure Virtual Network Manager (AVNM) is a centralized network management service
 - **JSII Compatible**: Can be used from TypeScript, Python, Java, and C#
 - **Terraform Outputs**: Automatic creation of outputs for easy reference
 - **Tag Management**: Built-in methods for managing resource tags
-- **Complete Child Resource Support**: All 6 child resource types fully implemented
+- **Complete Child Resource Support**: All child resource types fully implemented
   - Network Groups - Logical containers for VNets/subnets
   - Network Group Static Members - Add specific resources to groups
   - Connectivity Configurations - Mesh and hub-spoke topologies
   - Security Admin Configurations - High-priority security policies
   - Security Admin Rule Collections - Group related security rules
   - Security Admin Rules - Individual Allow/Deny/AlwaysAllow rules
+  - **IPAM Pools** - IP address management with hierarchical pools
+  - **IPAM Pool Static CIDRs** - Static CIDR allocations within pools
+- **IPAM Features**: Centralized IP address management with overlap prevention and validation utilities
 - **Flexible Usage Patterns**: Choose between convenience methods or direct instantiation
 
 ## Supported API Versions
@@ -1148,6 +1160,302 @@ new SecurityAdminRule(this, "allow-http-internal", {
   ]
 });
 ```
+
+## IPAM (IP Address Management)
+
+Azure Virtual Network Manager IPAM helps you manage IP address spaces at scale, preventing overlaps and enabling hierarchical allocation.
+
+### Features
+
+- **Centralized IP Management**: Manage IP addresses across multiple VNets from a single location
+- **Overlap Prevention**: Automatic validation to prevent overlapping CIDR blocks
+- **Hierarchical Pools**: Support for parent-child pool relationships for organized IP allocation
+- **Static Allocations**: Reserve specific CIDR blocks within pools for dedicated purposes
+- **CIDR Validation Utilities**: Built-in utilities for validating and analyzing CIDR blocks
+
+### Basic Usage
+
+#### Create Root IPAM Pool
+
+```typescript
+import { IpamPool } from "@microsoft/terraform-cdk-constructs/azure-virtualnetworkmanager";
+
+const ipamPool = new IpamPool(this, "RootPool", {
+  name: "production-pool",
+  location: "eastus",
+  networkManagerId: networkManager.id,
+  addressPrefixes: ["10.0.0.0/8"],
+  description: "Root IP address pool for production workloads",
+  displayName: "Production Root Pool",
+});
+```
+
+#### Create Static CIDR Allocation
+
+```typescript
+import { IpamPoolStaticCidr } from "@microsoft/terraform-cdk-constructs/azure-virtualnetworkmanager";
+
+const staticAllocation = new IpamPoolStaticCidr(this, "EastUSAllocation", {
+  name: "eastus-vnet-allocation",
+  ipamPoolId: ipamPool.id,
+  addressPrefixes: ["10.1.0.0/16"],
+  description: "Reserved for East US VNet",
+});
+```
+
+#### Hierarchical Pools
+
+```typescript
+// Parent pool
+const parentPool = new IpamPool(this, "ParentPool", {
+  name: "parent-pool",
+  location: "eastus",
+  networkManagerId: networkManager.id,
+  addressPrefixes: ["10.0.0.0/8"],
+  description: "Organization-wide IP address pool",
+});
+
+// Child pool
+const childPool = new IpamPool(this, "ChildPool", {
+  name: "child-pool-eastus",
+  location: "eastus",
+  networkManagerId: networkManager.id,
+  addressPrefixes: ["10.1.0.0/16"],
+  parentPoolName: parentPool.props.name,
+  description: "Child pool for East US region",
+});
+```
+
+### CIDR Validation Utilities
+
+The IPAM constructs include built-in CIDR validation utilities exported as functions:
+
+```typescript
+import {
+  isValidCidr,
+  cidrsOverlap,
+  calculateAddressCount,
+  isSubnet,
+} from "@microsoft/terraform-cdk-constructs/azure-virtualnetworkmanager";
+
+// Validate CIDR format
+const isValid = isValidCidr("10.0.0.0/8"); // true
+
+// Check for overlaps
+const overlap = cidrsOverlap("10.0.0.0/8", "10.1.0.0/16"); // true
+
+// Calculate address count
+const count = calculateAddressCount("10.0.0.0/24"); // 256
+
+// Validate subnet relationship
+const isSubnetOf = isSubnet("10.1.0.0/16", "10.0.0.0/8"); // true
+```
+
+### Regional Limitations
+
+**IMPORTANT:** IPAM is **NOT available** in the following regions:
+- Chile Central
+- Jio India West
+- Malaysia West
+- Qatar Central
+- South Africa West
+- West India
+- West US 3
+
+Ensure you deploy your IPAM pools in supported regions.
+
+### Best Practices
+
+1. **Plan IP Address Space**: Design your IP address hierarchy before implementation
+2. **Use Root Pools**: Start with large root pools (e.g., /8) for maximum flexibility
+3. **Hierarchical Organization**: Organize pools by region, environment, or application
+4. **Static Allocations**: Reserve specific blocks for known VNets or services
+5. **Validation**: Always validate CIDRs before creating pools to catch errors early
+6. **Documentation**: Document the purpose and allocation plan for each pool
+
+### Complete IPAM Example
+
+```typescript
+import { App, TerraformStack } from "cdktf";
+import { AzapiProvider } from "@microsoft/terraform-cdk-constructs/core-azure";
+import { ResourceGroup } from "@microsoft/terraform-cdk-constructs/azure-resourcegroup";
+import {
+  VirtualNetworkManager,
+  IpamPool,
+  IpamPoolStaticCidr,
+} from "@microsoft/terraform-cdk-constructs/azure-virtualnetworkmanager";
+
+const app = new App();
+const stack = new TerraformStack(app, "ipam-stack");
+
+// Configure provider
+new AzapiProvider(stack, "azapi", {});
+
+// Create resource group
+const resourceGroup = new ResourceGroup(stack, "rg", {
+  name: "rg-ipam-demo",
+  location: "eastus",
+});
+
+// Create Network Manager
+const networkManager = new VirtualNetworkManager(stack, "vnm", {
+  name: "ipam-network-manager",
+  location: "eastus",
+  resourceGroupName: resourceGroup.props.name,
+  networkManagerScopes: {
+    subscriptions: ["/subscriptions/00000000-0000-0000-0000-000000000000"],
+  },
+  networkManagerScopeAccesses: ["Connectivity"],
+  description: "Network manager with IPAM capabilities",
+});
+
+// Create root IPAM pool
+const rootPool = new IpamPool(stack, "RootPool", {
+  name: "root-pool",
+  location: "eastus",
+  networkManagerId: networkManager.id,
+  addressPrefixes: ["10.0.0.0/8"],
+  displayName: "Production Root Pool",
+  description: "Root IP address pool for all production workloads",
+});
+
+// Create regional child pool
+const eastUSPool = new IpamPool(stack, "EastUSPool", {
+  name: "eastus-pool",
+  location: "eastus",
+  networkManagerId: networkManager.id,
+  addressPrefixes: ["10.1.0.0/16"],
+  parentPoolName: rootPool.props.name,
+  displayName: "East US Region Pool",
+  description: "IP pool for East US region",
+});
+
+// Allocate static CIDR for specific VNet
+new IpamPoolStaticCidr(stack, "WebTierAllocation", {
+  name: "web-tier-allocation",
+  ipamPoolId: eastUSPool.id,
+  addressPrefixes: ["10.1.10.0/24"],
+  description: "Reserved for web tier VNet",
+});
+
+app.synth();
+```
+
+### API Reference
+
+#### IpamPool
+
+The main construct for creating and managing IPAM pools.
+
+**Constructor**: `new IpamPool(scope: Construct, id: string, props: IpamPoolProps)`
+
+**Properties**:
+
+Property | Type | Required | Description |
+|----------|------|----------|-------------|
+`name` | `string` | Yes | Name of the IPAM pool (2-64 characters) |
+`location` | `string` | Yes | Azure region where the pool will be deployed |
+`networkManagerId` | `string` | Yes | Resource ID of the parent Network Manager |
+`addressPrefixes` | `string[]` | Yes | Array of CIDR blocks (e.g., ["10.0.0.0/8"]) |
+`description` | `string` | No | Optional description of the pool |
+`displayName` | `string` | No | Friendly display name for the pool |
+`parentPoolName` | `string` | No | Name of parent pool for hierarchical pools |
+`tags` | `{ [key: string]: string }` | No | Resource tags |
+`apiVersion` | `string` | No | Pin to specific API version |
+`ignoreChanges` | `string[]` | No | Lifecycle ignore changes |
+
+**Public Properties**:
+
+Property | Type | Description |
+|----------|------|-------------|
+`id` | `string` | The Azure resource ID of the IPAM pool |
+`resourceName` | `string` | The name of the IPAM pool |
+`totalAddressCount` | `number` | Total number of IP addresses in the pool |
+`provisioningState` | `string` | The provisioning state of the pool |
+
+**Outputs**:
+- `id`: The IPAM pool resource ID
+- `name`: The IPAM pool name
+- `location`: The IPAM pool location
+- `provisioningState`: The provisioning state
+
+#### IpamPoolStaticCidr
+
+The construct for creating static CIDR allocations within IPAM pools.
+
+**Constructor**: `new IpamPoolStaticCidr(scope: Construct, id: string, props: IpamPoolStaticCidrProps)`
+
+**Properties**:
+
+Property | Type | Required | Description |
+|----------|------|----------|-------------|
+`name` | `string` | Yes | Name of the static CIDR allocation |
+`ipamPoolId` | `string` | Yes | Resource ID of the parent IPAM pool |
+`addressPrefixes` | `string[]` | Yes | Array of CIDR blocks to allocate |
+`description` | `string` | No | Optional description |
+`numberOfIPAddresses` | `string` | No | IP count (auto-calculated if not provided) |
+`apiVersion` | `string` | No | Pin to specific API version |
+`ignoreChanges` | `string[]` | No | Lifecycle ignore changes |
+
+**Public Properties**:
+
+Property | Type | Description |
+|----------|------|-------------|
+`id` | `string` | The Azure resource ID of the static CIDR |
+`resourceName` | `string` | The name of the static CIDR |
+`calculatedAddressCount` | `number` | Number of addresses in the CIDR block |
+
+**Outputs**:
+- `id`: The static CIDR resource ID
+- `name`: The static CIDR name
+- `addressPrefix`: The CIDR address prefix
+
+#### CIDR Validation Functions
+
+Utility functions for CIDR validation and analysis.
+
+**Functions**:
+
+Function | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+`isValidCidr()` | `cidr: string` | `boolean` | Validates if a string is valid CIDR notation |
+`isPrivateRange()` | `cidr: string` | `boolean` | Checks if CIDR is within private IP ranges |
+`cidrsOverlap()` | `cidr1: string, cidr2: string` | `boolean` | Checks if two CIDR blocks overlap |
+`isSubnet()` | `childCidr: string, parentCidr: string` | `boolean` | Validates if child CIDR is within parent CIDR |
+`calculateAddressCount()` | `cidr: string` | `number` | Calculates number of IP addresses in CIDR |
+`isValidPrefixLength()` | `cidr: string, min: number, max: number` | `boolean` | Validates prefix length is within range |
+`validateCidr()` | `cidr: string` | `CidrValidationResult` | Validates CIDR and returns detailed errors/warnings |
+`parseCidr()` | `cidr: string` | `ParsedCidr` | Parses CIDR into structured information |
+`checkOverlap()` | `cidr1: string, cidr2: string` | `boolean` | Checks if two CIDRs overlap |
+`validateNoOverlaps()` | `cidrs: string[]` | `CidrValidationResult` | Validates that multiple CIDRs don't overlap |
+`isContained()` | `parentCidr: string, childCidr: string` | `boolean` | Checks if child CIDR is contained in parent |
+`validateContainment()` | `parentCidr: string, childCidrs: string[]` | `CidrValidationResult` | Validates multiple child CIDRs are contained in parent |
+
+### Troubleshooting
+
+**Error: "Invalid CIDR notation"**
+- Ensure CIDR uses correct format: `x.x.x.x/y` where y is 0-32
+- Verify octets are 0-255
+- Use [`isValidCidr()`](src/azure-virtualnetworkmanager/lib/utils/cidr-validator.ts) to validate before creating pools
+
+**Error: "Address prefixes overlap"**
+- Check for overlapping CIDRs within the same pool
+- Use [`cidrsOverlap()`](src/azure-virtualnetworkmanager/lib/utils/cidr-validator.ts) to detect conflicts
+- Ensure no two address prefixes in the same pool overlap
+
+**Error: "Region not supported"**
+- Verify your region supports IPAM (see Regional Limitations above)
+- Consider using a different supported region
+- Check Azure documentation for the latest regional availability
+
+**Error: "CIDR not within parent pool"**
+- Ensure child pool CIDR is a subset of parent pool
+- Use [`isSubnet()`](src/azure-virtualnetworkmanager/lib/utils/cidr-validator.ts) to verify parent-child relationship
+- Parent pool must contain all child pool address prefixes
+
+**Error: "At least one address prefix is required"**
+- Provide at least one valid CIDR block in the `addressPrefixes` array
+- Ensure the array is not empty
 
 ## Complete End-to-End Example
 
