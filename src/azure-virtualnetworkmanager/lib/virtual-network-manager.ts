@@ -25,6 +25,7 @@ import {
   ConnectivityGroupItem,
   Hub,
 } from "./connectivity-configuration-schemas";
+import { IpamPool } from "./ipam-pool";
 import { NetworkGroup } from "./network-group";
 import { SecurityAdminConfiguration } from "./security-admin-configuration";
 import {
@@ -193,6 +194,45 @@ export interface AddSecurityAdminConfigurationProps extends AzapiResourceProps {
    * @example ["All"]
    */
   readonly applyOnNetworkIntentPolicyBasedServices?: string[];
+
+  /**
+   * The lifecycle rules to ignore changes
+   * @example ["tags"]
+   */
+  readonly ignoreChanges?: string[];
+}
+
+/**
+ * Properties for adding an IpamPool via the convenience method
+ * This interface excludes networkManagerId as it's automatically set
+ */
+export interface AddIpamPoolProps extends AzapiResourceProps {
+  /**
+   * IP address prefixes for the pool
+   * Must be valid CIDR notation (e.g., "10.0.0.0/8")
+   * Multiple prefixes must not overlap
+   * @example ["10.0.0.0/8", "172.16.0.0/12"]
+   */
+  readonly addressPrefixes: string[];
+
+  /**
+   * Optional description of the IPAM pool
+   * @example "Production IP address pool for East US region"
+   */
+  readonly description?: string;
+
+  /**
+   * Optional friendly display name
+   * @example "East US Production Pool"
+   */
+  readonly displayName?: string;
+
+  /**
+   * Name of parent pool for hierarchical pools
+   * Leave empty/undefined for root pools
+   * @example "root-pool"
+   */
+  readonly parentPoolName?: string;
 
   /**
    * The lifecycle rules to ignore changes
@@ -506,6 +546,33 @@ export class VirtualNetworkManager extends AzapiResource {
     props: AddSecurityAdminConfigurationProps,
   ): SecurityAdminConfiguration {
     return new SecurityAdminConfiguration(this, id, {
+      ...props,
+      networkManagerId: this.id,
+    });
+  }
+
+  /**
+   * Convenience method to create an IpamPool
+   *
+   * This is a helper method that creates an IpamPool with the networkManagerId
+   * automatically set to this Network Manager's ID. You can also create IpamPools
+   * directly using: new IpamPool(scope, id, { networkManagerId: vnm.id, ...props })
+   *
+   * @param id - The unique identifier for the IPAM pool construct
+   * @param props - IpamPool properties (networkManagerId will be set automatically)
+   * @returns The created IpamPool instance
+   *
+   * @example
+   * const ipamPool = networkManager.addIpamPool("prod-pool", {
+   *   name: "production-pool",
+   *   location: "eastus",
+   *   addressPrefixes: ["10.0.0.0/8"],
+   *   description: "Production IP address pool",
+   *   displayName: "Production Pool"
+   * });
+   */
+  public addIpamPool(id: string, props: AddIpamPoolProps): IpamPool {
+    return new IpamPool(this, id, {
       ...props,
       networkManagerId: this.id,
     });

@@ -3,7 +3,7 @@
  *
  * This test demonstrates comprehensive usage of the VirtualNetworkManager construct
  * including all child resources (NetworkGroup, ConnectivityConfiguration, SecurityAdminConfiguration,
- * SecurityAdminRuleCollection, SecurityAdminRule, and NetworkGroupStaticMember).
+ * SecurityAdminRuleCollection, SecurityAdminRule, NetworkGroupStaticMember, IpamPool, and IpamPoolStaticCidr).
  *
  * It validates:
  * - VirtualNetworkManager deployment
@@ -11,6 +11,7 @@
  * - NetworkGroupStaticMember for adding VNets to groups
  * - ConnectivityConfiguration for both Mesh and Hub-Spoke topologies
  * - SecurityAdminConfiguration, RuleCollections, and Rules (Allow, Deny, AlwaysAllow)
+ * - IpamPool and IpamPoolStaticCidr for IP address management
  * - Parent-child relationships and proper deployment order
  * - Idempotency and cleanup
  *
@@ -34,6 +35,7 @@ import { AzapiProvider } from "../../core-azure/lib/azapi/providers-azapi/provid
 import { BaseTestStack, TerraformApplyCheckAndDestroy } from "../../testing";
 import { TestRunMetadata } from "../../testing/lib/metadata";
 import { ConnectivityConfiguration } from "../lib/connectivity-configuration";
+import { IpamPoolStaticCidr } from "../lib/ipam-pool-static-cidr";
 import { NetworkGroup } from "../lib/network-group";
 import { NetworkGroupStaticMember } from "../lib/network-group-static-member";
 import { SecurityAdminRule } from "../lib/security-admin-rule";
@@ -437,6 +439,35 @@ class VirtualNetworkManagerComprehensiveStack extends BaseTestStack {
         },
       ],
     });
+
+    // =============================================================================
+    // TEST IPAM POOLS
+    // =============================================================================
+
+    // Create parent IPAM pool for IP address management using convenience method
+    const ipamPool = networkManager.addIpamPool("ipam-pool", {
+      name: "ipam-pool-test",
+      location: resourceGroup.props.location!,
+      addressPrefixes: ["10.100.0.0/16", "10.200.0.0/16"],
+      description: "Test IPAM pool for address space management",
+    });
+
+    // Create static CIDR allocation from the IPAM pool
+    new IpamPoolStaticCidr(this, "ipam-static-cidr", {
+      name: "static-cidr-test",
+      ipamPoolId: ipamPool.id,
+      addressPrefixes: ["10.100.1.0/24"],
+      description: "Static CIDR allocation for testing",
+    });
+
+    // Create child IPAM pool for hierarchical management using convenience method
+    networkManager.addIpamPool("ipam-child-pool", {
+      name: "ipam-pool-child",
+      location: resourceGroup.props.location!,
+      parentPoolName: ipamPool.name,
+      addressPrefixes: ["10.100.2.0/24"],
+      description: "Child IPAM pool for hierarchical testing",
+    });
   }
 }
 
@@ -451,7 +482,7 @@ describe("Virtual Network Manager Comprehensive Integration Test", () => {
 
     // This will:
     // 1. Run terraform apply to deploy all resources (VNM, VNets, NetworkGroups,
-    //    StaticMembers, ConnectivityConfigs, SecurityAdminConfigs, RuleCollections, Rules)
+    //    StaticMembers, ConnectivityConfigs, SecurityAdminConfigs, RuleCollections, Rules, IpamPools)
     // 2. Run terraform plan to check idempotency (no changes expected)
     // 3. Run terraform destroy to cleanup all resources
     //
