@@ -55,6 +55,7 @@ export * as azure_subnet from "./azure-subnet";
 export * as azure_virtualmachine from "./azure-virtualmachine";
 export * as azure_virtualnetwork from "./azure-virtualnetwork";
 export * as azure_virtualnetworkgateway from "./azure-virtualnetworkgateway";
+export * as azure_virtualnetworkgatewayconnection from "./azure-virtualnetworkgatewayconnection";
 export * as azure_virtualnetworkmanager from "./azure-virtualnetworkmanager";
 export * as azure_vmss from "./azure-vmss";
 
@@ -82,6 +83,7 @@ export * from "./azure-subnet";
 export * from "./azure-virtualmachine";
 export * from "./azure-virtualnetwork";
 export * from "./azure-virtualnetworkgateway";
+export * from "./azure-virtualnetworkgatewayconnection";
 export * from "./azure-virtualnetworkmanager";
 export * from "./azure-vmss";
 
