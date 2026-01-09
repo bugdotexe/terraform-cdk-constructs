@@ -3,8 +3,8 @@
  *
  * This class provides a version-aware implementation for managing Azure Policy Assignments
  * using the AZAPI provider. Policy assignments apply policy definitions to specific scopes
- * (subscription, resource group, or resource) and can provide parameter values and
- * enforcement settings.
+ * (management group, subscription, resource group, or resource) and can provide parameter
+ * values and enforcement settings.
  *
  * Supported API Versions:
  * - 2022-06-01 (Active, Latest)
@@ -89,9 +89,10 @@ export interface PolicyAssignmentProps extends AzapiResourceProps {
 
   /**
    * The scope at which the policy assignment is applied
-   * Can be a subscription, resource group, or resource
+   * Can be a management group, subscription, resource group, or resource
    * Required property
    *
+   * @example "/providers/Microsoft.Management/managementGroups/my-mg"
    * @example "/subscriptions/00000000-0000-0000-0000-000000000000"
    * @example "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-name"
    */
@@ -262,8 +263,9 @@ export interface PolicyAssignmentBody {
  * Policy Assignments. It automatically handles version resolution, schema validation,
  * and property transformation.
  *
- * Note: Policy assignments can be deployed at subscription, resource group, or resource scope.
- * Like policy definitions, they do not have a location property as they are not region-specific.
+ * Note: Policy assignments can be deployed at management group, subscription, resource group,
+ * or resource scope. Like policy definitions, they do not have a location property as they
+ * are not region-specific.
  *
  * @example
  * // Basic policy assignment:
@@ -300,6 +302,16 @@ export interface PolicyAssignmentBody {
  *   identity: {
  *     type: "SystemAssigned"
  *   }
+ * });
+ *
+ * @example
+ * // Policy assignment at management group scope:
+ * const mgAssignment = new PolicyAssignment(this, "mgAssignment", {
+ *   name: "mg-policy-assignment",
+ *   policyDefinitionId: "/providers/Microsoft.Authorization/policyDefinitions/policy-id",
+ *   scope: "/providers/Microsoft.Management/managementGroups/my-mg",
+ *   displayName: "Management Group Policy",
+ *   description: "Applies policy across the entire management group hierarchy"
  * });
  *
  * @stability stable

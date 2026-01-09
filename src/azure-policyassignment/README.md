@@ -4,7 +4,7 @@ This module provides a unified, version-aware implementation for managing Azure 
 
 ## Overview
 
-Azure Policy Assignments apply policy definitions to specific scopes (subscription, resource group, or resource) and provide parameter values for policy enforcement. Policy assignments can configure enforcement modes, managed identities for remediation, and custom non-compliance messages.
+Azure Policy Assignments apply policy definitions to specific scopes (management group, subscription, resource group, or resource) and provide parameter values for policy enforcement. Policy assignments can configure enforcement modes, managed identities for remediation, and custom non-compliance messages.
 
 ## Key Features
 
@@ -13,7 +13,7 @@ Azure Policy Assignments apply policy definitions to specific scopes (subscripti
 - **Schema-Driven Validation**: Built-in validation based on Azure API schemas
 - **Type-Safe**: Full TypeScript support with comprehensive interfaces
 - **JSII Compatible**: Can be used from multiple programming languages
-- **Flexible Scoping**: Support for subscription, resource group, and resource-level assignments
+- **Flexible Scoping**: Support for management group, subscription, resource group, and resource-level assignments
 - **Enforcement Modes**: Control whether policies are enforced or audited
 - **Managed Identity Support**: Enable remediation for deployIfNotExists and modify policies
 - **Scope Exclusions**: Exclude specific scopes from policy evaluation
@@ -285,6 +285,14 @@ console.log("Enforcement Mode:", assignment.enforcementMode);
 
 Policy assignments can be applied at different organizational levels:
 
+#### Management Group Scope
+
+```typescript
+scope: "/providers/Microsoft.Management/managementGroups/my-mg";
+```
+
+Applies to all subscriptions and resources within the management group hierarchy. This is the highest level scope and is ideal for organization-wide policies.
+
 #### Subscription Scope
 
 ```typescript
@@ -389,6 +397,40 @@ Policy Assignment constructs expose the following outputs:
    - Minimize the use of exclusions
 
 ## Examples
+
+### Assign Policy at Management Group Level
+
+```typescript
+// Apply an organization-wide policy at management group scope
+const mgPolicyDefinition = new PolicyDefinition(this, "org-policy", {
+  name: "require-resource-tags",
+  parentId: "/providers/Microsoft.Management/managementGroups/my-mg",
+  displayName: "Require Resource Tags",
+  policyRule: {
+    if: {
+      field: "tags['CostCenter']",
+      exists: "false",
+    },
+    then: {
+      effect: "deny",
+    },
+  },
+});
+
+const mgAssignment = new PolicyAssignment(this, "mg-tag-assignment", {
+  name: "require-tags-org-wide",
+  displayName: "Require Tags Across Organization",
+  description: "Enforces required tags across all subscriptions in the management group",
+  policyDefinitionId: mgPolicyDefinition.id,
+  scope: "/providers/Microsoft.Management/managementGroups/my-mg",
+  nonComplianceMessages: [
+    {
+      message:
+        "All resources must have a CostCenter tag for billing and cost allocation purposes.",
+    },
+  ],
+});
+```
 
 ### Assign Tag Policy at Subscription Level
 

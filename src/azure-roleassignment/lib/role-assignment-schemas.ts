@@ -72,7 +72,7 @@ const COMMON_PROPERTIES: { [key: string]: PropertyDefinition } = {
     dataType: PropertyType.STRING,
     required: true,
     description:
-      "The scope at which the role assignment is applied (subscription, resource group, or resource)",
+      "The scope at which the role assignment is applied (management group, subscription, resource group, or resource)",
     validation: [
       {
         ruleType: ValidationRuleType.REQUIRED,

@@ -1062,4 +1062,106 @@ describe("PolicyDefinition - Unified Implementation", () => {
       expect(resourceProviderPolicy.policyMode).toBe("Microsoft.KeyVault.Data");
     });
   });
+
+  describe("Management Group Scope Support", () => {
+    it("should support management group scope via parentId property", () => {
+      const mgPolicyDefinition = new PolicyDefinition(
+        stack,
+        "MgPolicyDefinition",
+        {
+          name: "mg-policy",
+          parentId: "/providers/Microsoft.Management/managementGroups/my-mg",
+          displayName: "Management Group Policy",
+          description: "Policy deployed at management group scope",
+          policyRule: {
+            if: {
+              field: "tags['CostCenter']",
+              exists: "false",
+            },
+            then: {
+              effect: "deny",
+            },
+          },
+        },
+      );
+
+      expect(mgPolicyDefinition).toBeDefined();
+      expect(mgPolicyDefinition.props.parentId).toBe(
+        "/providers/Microsoft.Management/managementGroups/my-mg",
+      );
+
+      // Verify the policy was created successfully
+      const synthesized = Testing.synth(stack);
+      expect(synthesized).toBeDefined();
+
+      const stackConfig = JSON.parse(synthesized);
+      const azapiResource = Object.values(
+        stackConfig.resource.azapi_resource,
+      )[0] as any;
+
+      expect(azapiResource.parent_id).toBe(
+        "/providers/Microsoft.Management/managementGroups/my-mg",
+      );
+    });
+
+    it("should default to subscription scope when parentId is not provided", () => {
+      new PolicyDefinition(stack, "SubPolicyDefinition", {
+        name: "sub-policy",
+        displayName: "Subscription Policy",
+        policyRule: {
+          if: {
+            field: "type",
+            equals: "Microsoft.Compute/virtualMachines",
+          },
+          then: {
+            effect: "audit",
+          },
+        },
+      });
+
+      const synthesized = Testing.synth(stack);
+      const stackConfig = JSON.parse(synthesized);
+      const azapiResource = Object.values(
+        stackConfig.resource.azapi_resource,
+      )[0] as any;
+
+      // Should default to subscription scope
+      expect(azapiResource.parent_id).toContain("/subscriptions/");
+    });
+
+    it("should support explicit subscription scope via parentId", () => {
+      const subPolicyDefinition = new PolicyDefinition(
+        stack,
+        "ExplicitSubPolicy",
+        {
+          name: "explicit-sub-policy",
+          parentId: "/subscriptions/00000000-0000-0000-0000-000000000000",
+          displayName: "Explicit Subscription Policy",
+          policyRule: {
+            if: {
+              field: "location",
+              equals: "eastus",
+            },
+            then: {
+              effect: "deny",
+            },
+          },
+        },
+      );
+
+      expect(subPolicyDefinition.props.parentId).toBe(
+        "/subscriptions/00000000-0000-0000-0000-000000000000",
+      );
+
+      const synthesized = Testing.synth(stack);
+      const stackConfig = JSON.parse(synthesized);
+      const azapiResource = Object.values(
+        stackConfig.resource.azapi_resource,
+      )[0] as any;
+
+      expect(azapiResource.parent_id).toBe(
+        "/subscriptions/00000000-0000-0000-0000-000000000000",
+      );
+    });
+  });
 });

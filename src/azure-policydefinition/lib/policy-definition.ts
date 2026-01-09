@@ -113,6 +113,17 @@ export interface PolicyDefinitionProps extends AzapiResourceProps {
   readonly metadata?: any;
 
   /**
+   * The parent scope where the policy definition should be created
+   * Can be a management group or subscription scope
+   * If not specified, defaults to subscription scope
+   *
+   * @example "/providers/Microsoft.Management/managementGroups/my-mg"
+   * @example "/subscriptions/00000000-0000-0000-0000-000000000000"
+   * @defaultValue Subscription scope (auto-detected from client config)
+   */
+  readonly parentId?: string;
+
+  /**
    * The lifecycle rules to ignore changes
    * @example ["metadata"]
    */
@@ -219,6 +230,24 @@ export interface PolicyDefinitionBody {
  *       metadata: {
  *         displayName: "Tag Name"
  *       }
+ *     }
+ *   }
+ * });
+ *
+ * @example
+ * // Policy definition at management group scope:
+ * const mgPolicyDefinition = new PolicyDefinition(this, "mgPolicy", {
+ *   name: "mg-require-tag-policy",
+ *   parentId: "/providers/Microsoft.Management/managementGroups/my-mg",
+ *   displayName: "Management Group Tag Policy",
+ *   description: "Enforces tags across the management group hierarchy",
+ *   policyRule: {
+ *     if: {
+ *       field: "tags['CostCenter']",
+ *       exists: "false"
+ *     },
+ *     then: {
+ *       effect: "deny"
  *     }
  *   }
  * });
@@ -366,6 +395,22 @@ export class PolicyDefinition extends AzapiResource {
       // This is essential for DeployIfNotExists policies with ARM template deployments
       ignoreMissingProperty: true,
     };
+  }
+
+  /**
+   * Overrides parent ID resolution to use parentId from props if provided
+   * Policy definitions can be deployed at subscription or management group scope
+   */
+  protected resolveParentId(props: any): string {
+    const typedProps = props as PolicyDefinitionProps;
+
+    // If explicit parentId is provided, use it (management group or subscription)
+    if (typedProps.parentId) {
+      return typedProps.parentId;
+    }
+
+    // Otherwise, fall back to default subscription scope
+    return super.resolveParentId(props);
   }
 
   // =============================================================================

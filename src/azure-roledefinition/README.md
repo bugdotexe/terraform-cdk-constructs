@@ -99,6 +99,30 @@ const storageOperator = new RoleDefinition(this, "storage-operator", {
 });
 ```
 
+### Role with Management Group Scope
+
+Define a role that can be assigned at management group level for organization-wide access:
+
+```typescript
+const orgRole = new RoleDefinition(this, "org-role", {
+  name: "org-wide-role",
+  roleName: "Organization Reader",
+  description: "Can view resources across the entire organization hierarchy",
+  permissions: [
+    {
+      actions: [
+        "Microsoft.Resources/subscriptions/read",
+        "Microsoft.Resources/subscriptions/resourceGroups/read",
+        "Microsoft.Management/managementGroups/read"
+      ]
+    }
+  ],
+  assignableScopes: [
+    "/providers/Microsoft.Management/managementGroups/my-mg"
+  ]
+});
+```
+
 ### Multiple Assignable Scopes
 
 Define a role that can be assigned at multiple levels:
@@ -325,9 +349,14 @@ assignableScopes: [
   "/subscriptions/sub-id/resourceGroups/production-vms"
 ]
 
-// Avoid: Too broad if not necessary
+// Acceptable: Subscription level when needed
 assignableScopes: [
   "/subscriptions/sub-id"
+]
+
+// Use carefully: Management group level only for organization-wide roles
+assignableScopes: [
+  "/providers/Microsoft.Management/managementGroups/my-mg"
 ]
 ```
 

@@ -121,6 +121,7 @@ export interface RoleDefinitionProps extends AzapiResourceProps {
    *
    * @example ["/subscriptions/00000000-0000-0000-0000-000000000000"]
    * @example ["/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-name"]
+   * @example ["/providers/Microsoft.Management/managementGroups/my-mg"]
    */
   readonly assignableScopes: string[];
 

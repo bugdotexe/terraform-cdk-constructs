@@ -15,7 +15,7 @@
  * - Support for all principal types (User, Group, ServicePrincipal, ForeignGroup, Device)
  * - Conditional role assignments using ABAC (Attribute-Based Access Control)
  * - Delegated managed identity support for group assignments
- * - Assignment at subscription, resource group, or resource scope
+ * - Assignment at management group, subscription, resource group, or resource scope
  * - JSII compliance for multi-language support
  */
 
@@ -65,9 +65,10 @@ export interface RoleAssignmentProps extends AzapiResourceProps {
 
   /**
    * The scope at which the role assignment is applied
-   * Can be a subscription, resource group, or resource
+   * Can be a management group, subscription, resource group, or resource
    * Required property
    *
+   * @example "/providers/Microsoft.Management/managementGroups/my-mg"
    * @example "/subscriptions/00000000-0000-0000-0000-000000000000"
    * @example "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-name"
    * @example "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-name/providers/Microsoft.Storage/storageAccounts/storage-name"
@@ -194,8 +195,9 @@ export interface RoleAssignmentBody {
  * and property transformation.
  *
  * **Important Notes:**
- * - Role assignments are scoped resources deployed at subscription, resource group,
- *   or resource level. They do not have a location property as they are not region-specific.
+ * - Role assignments are scoped resources deployed at management group, subscription,
+ *   resource group, or resource level. They do not have a location property as they
+ *   are not region-specific.
  * - The `name` property (inherited from AzapiResourceProps) is not used. Azure automatically
  *   generates a deterministic GUID for role assignment names based on the deployment context.
  *   This ensures idempotent deployments without duplicate role assignments.
@@ -232,6 +234,17 @@ export interface RoleAssignmentBody {
  *   condition: "@Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringEquals 'logs'",
  *   conditionVersion: "2.0",
  *   description: "Grants access only to the logs container",
+ * });
+ *
+ * @example
+ * Management group scoped assignment - Assign Reader role at management group level
+ *
+ * const mgAssignment = new RoleAssignment(this, "mg-assignment", {
+ *   roleDefinitionId: "/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
+ *   principalId: "00000000-0000-0000-0000-000000000000",
+ *   scope: "/providers/Microsoft.Management/managementGroups/my-mg",
+ *   principalType: "Group",
+ *   description: "Grants read access across the entire management group hierarchy",
  * });
  *
  * @stability stable
@@ -328,7 +341,7 @@ export class RoleAssignment extends AzapiResource {
    * Transforms the input properties into the JSON format expected by Azure REST API
    *
    * Note: Role assignments do not have a location property as they are
-   * scoped resources (subscription, resource group, or resource level).
+   * scoped resources (management group, subscription, resource group, or resource level).
    * The scope property is NOT included in the body as it's read-only and
    * automatically derived from the parentId.
    */

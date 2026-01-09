@@ -344,6 +344,32 @@ Policy Definition constructs expose the following outputs:
 
 ## Examples
 
+### Policy Definition at Management Group Scope
+
+```typescript
+// Create a policy definition at management group scope
+// This makes the policy available to all subscriptions under the management group
+new PolicyDefinition(this, "mg-policy", {
+  name: "org-wide-tag-policy",
+  parentId: "/providers/Microsoft.Management/managementGroups/my-mg",
+  displayName: "Organization-Wide Tag Policy",
+  description: "Enforces required tags across all subscriptions in the organization",
+  policyRule: {
+    if: {
+      field: "tags['CostCenter']",
+      exists: "false",
+    },
+    then: {
+      effect: "deny",
+    },
+  },
+  metadata: {
+    category: "Tags",
+    version: "1.0.0",
+  },
+});
+```
+
 ### Require Specific Resource Locations
 
 ```typescript

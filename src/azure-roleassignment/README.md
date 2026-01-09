@@ -1,6 +1,6 @@
 # Azure Role Assignment Construct
 
-This module provides a CDK construct for managing Azure Role Assignments using the AZAPI provider. Role assignments grant specific permissions (roles) to security principals (users, groups, service principals, managed identities) at a particular scope (subscription, resource group, or resource).
+This module provides a CDK construct for managing Azure Role Assignments using the AZAPI provider. Role assignments grant specific permissions (roles) to security principals (users, groups, service principals, managed identities) at a particular scope (management group, subscription, resource group, or resource).
 
 ## Table of Contents
 
@@ -22,7 +22,7 @@ This module provides a CDK construct for managing Azure Role Assignments using t
 - **Schema-Driven Validation**: Built-in property validation with comprehensive error messages
 - **Principal Types**: Support for User, Group, ServicePrincipal, ForeignGroup, and Device principals
 - **Conditional Access (ABAC)**: Attribute-Based Access Control with condition expressions
-- **Flexible Scoping**: Assign roles at subscription, resource group, or individual resource scope
+- **Flexible Scoping**: Assign roles at management group, subscription, resource group, or individual resource scope
 - **Delegated Managed Identity**: Support for delegated identity scenarios with group assignments
 - **Built-in and Custom Roles**: Works with both Azure built-in roles and custom role definitions
 - **JSII Compliance**: Full support for multi-language bindings
@@ -150,6 +150,20 @@ const groupAssignment = new RoleAssignment(this, 'group-assignment', {
 });
 ```
 
+### Management Group Scoped Assignment
+
+```typescript
+// Assign a role at management group scope for organization-wide access
+const mgAssignment = new RoleAssignment(this, 'mg-reader', {
+  name: 'mg-reader-assignment',
+  roleDefinitionId: '/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7', // Reader
+  principalId: '00000000-0000-0000-0000-000000000000',
+  scope: '/providers/Microsoft.Management/managementGroups/my-mg',
+  principalType: 'Group',
+  description: 'Grants read access across the entire management group hierarchy',
+});
+```
+
 ### Resource Group Scoped Assignment
 
 ```typescript
@@ -184,7 +198,7 @@ const resourceAssignment = new RoleAssignment(this, 'storage-contributor', {
 |----------|------|-------------|
 | `roleDefinitionId` | string | The role definition ID to assign (built-in or custom role) |
 | `principalId` | string | The Object ID of the principal (user, group, service principal, managed identity) |
-| `scope` | string | The scope at which the role is assigned (subscription, resource group, or resource) |
+| `scope` | string | The scope at which the role is assigned (management group, subscription, resource group, or resource) |
 
 ### Optional Properties
 
@@ -314,6 +328,9 @@ roleDefinitionId: '/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3
 Assign roles at the narrowest scope possible:
 
 ```typescript
+// ❌ Bad: Management group-wide access when subscription scope is sufficient
+scope: '/providers/Microsoft.Management/managementGroups/my-mg'
+
 // ❌ Bad: Subscription-wide access when not needed
 scope: '/subscriptions/00000000-0000-0000-0000-000000000000'
 
@@ -396,7 +413,35 @@ new RoleAssignment(this, 'assignment', {
 
 ## Examples
 
-### Example 1: Multi-Region Monitoring Setup
+### Example 1: Management Group Level Access Control
+
+```typescript
+// Grant organization-wide read access to security team at management group level
+const securityReaderAssignment = new RoleAssignment(this, 'security-mg-reader', {
+  name: 'security-org-reader',
+  roleDefinitionId: '/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7', // Reader
+  principalId: securityTeamGroup.objectId,
+  scope: '/providers/Microsoft.Management/managementGroups/root-mg',
+  principalType: 'Group',
+  description: 'Grants security team read access across all subscriptions and resources in the organization',
+  tags: {
+    team: 'security',
+    purpose: 'compliance-monitoring',
+  },
+});
+
+// Grant User Access Administrator at management group for identity management team
+const identityMgmtAssignment = new RoleAssignment(this, 'identity-mg-uaa', {
+  name: 'identity-user-access-admin',
+  roleDefinitionId: '/providers/Microsoft.Authorization/roleDefinitions/18d7d88d-d35e-4fb5-a5c3-7773c20a72d9', // User Access Administrator
+  principalId: identityTeamGroup.objectId,
+  scope: '/providers/Microsoft.Management/managementGroups/root-mg',
+  principalType: 'Group',
+  description: 'Grants identity team ability to manage role assignments organization-wide',
+});
+```
+
+### Example 2: Multi-Region Monitoring Setup
 
 ```typescript
 const regions = ['eastus', 'westus', 'northeurope'];
