@@ -793,6 +793,19 @@ describe("PolicyAssignment - Unified Implementation", () => {
   });
 
   describe("Scope Configurations", () => {
+    it("should support management group scope", () => {
+      const assignment = new PolicyAssignment(stack, "ManagementGroupScope", {
+        name: "mg-assignment",
+        policyDefinitionId:
+          "/providers/Microsoft.Authorization/policyDefinitions/test-policy",
+        scope: "/providers/Microsoft.Management/managementGroups/my-mg",
+      });
+
+      expect(assignment.assignmentScope).toContain(
+        "/providers/Microsoft.Management/managementGroups/",
+      );
+    });
+
     it("should support subscription scope", () => {
       const assignment = new PolicyAssignment(stack, "SubscriptionScope", {
         name: "subscription-assignment",

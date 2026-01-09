@@ -497,6 +497,21 @@ describe("RoleAssignment - Unified Implementation", () => {
   });
 
   describe("Scope Configurations", () => {
+    it("should support management group scope", () => {
+      const mgScope = "/providers/Microsoft.Management/managementGroups/my-mg";
+
+      const roleAssignment = new RoleAssignment(stack, "ManagementGroupScope", {
+        name: "mg-assignment",
+        roleDefinitionId: TEST_ROLE_DEF_ID,
+        principalId: TEST_PRINCIPAL_ID,
+        scope: mgScope,
+      });
+
+      expect(roleAssignment.assignmentScope).toContain(
+        "/providers/Microsoft.Management/managementGroups/",
+      );
+    });
+
     it("should support subscription scope", () => {
       const roleAssignment = new RoleAssignment(stack, "SubscriptionScope", {
         name: "subscription-assignment",
