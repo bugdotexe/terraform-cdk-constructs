@@ -91,7 +91,6 @@ describe("PolicyAssignment - Unified Implementation", () => {
         metadata: {
           assignedBy: "admin@example.com",
         },
-        location: "eastus",
         identity: {
           type: "SystemAssigned",
         },
@@ -341,7 +340,6 @@ describe("PolicyAssignment - Unified Implementation", () => {
         metadata: {
           assignedBy: "admin@example.com",
         },
-        location: "eastus",
         identity: {
           type: "SystemAssigned",
         },
@@ -418,7 +416,6 @@ describe("PolicyAssignment - Unified Implementation", () => {
         policyDefinitionId:
           "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/policyDefinitions/test-policy",
         scope: "/subscriptions/00000000-0000-0000-0000-000000000000",
-        location: "eastus",
         identity: {
           type: "SystemAssigned",
         },
@@ -434,7 +431,6 @@ describe("PolicyAssignment - Unified Implementation", () => {
         policyDefinitionId:
           "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/policyDefinitions/test-policy",
         scope: "/subscriptions/00000000-0000-0000-0000-000000000000",
-        location: "eastus",
         identity: {
           type: "UserAssigned",
           userAssignedIdentities: {
@@ -455,7 +451,6 @@ describe("PolicyAssignment - Unified Implementation", () => {
         policyDefinitionId:
           "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/policyDefinitions/test-policy",
         scope: "/subscriptions/00000000-0000-0000-0000-000000000000",
-        location: "eastus",
         identity: {
           type: "None",
         },

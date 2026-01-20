@@ -542,6 +542,7 @@ export class SchemaMapper {
       "enableTransformation",
       "ignoreChanges",
       "resourceGroupId",
+      "parentId", // AZAPI provider internal property for resource hierarchy
       "monitoring", // Framework-level monitoring configuration
       "virtualNetworkId", // Framework-level dependency tracking for child resources
     ]);
