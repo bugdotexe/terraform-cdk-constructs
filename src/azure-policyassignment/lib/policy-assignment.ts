@@ -350,14 +350,6 @@ export class PolicyAssignment extends AzapiResource {
 
     this.props = props;
 
-    // Validate that location is provided when identity is specified
-    if (props.identity && !this.location) {
-      throw new Error(
-        `Location is required for Policy Assignment "${props.name || id}" when identity is specified. ` +
-          `The managed identity must be provisioned in a specific Azure region.`,
-      );
-    }
-
     // Extract properties from the AZAPI resource outputs using Terraform interpolation
 
     // Create Terraform outputs for easy access and referencing from other resources
@@ -445,8 +437,8 @@ export class PolicyAssignment extends AzapiResource {
     // Add identity if provided
     if (typedProps.identity) {
       body.identity = typedProps.identity;
-      // Azure requires location when identity is specified for managed identity provisioning
-      body.location = typedProps.location;
+      // Note: location is NOT added to the body for policy assignments
+      // It's handled by the AZAPI provider config for identity provisioning
     }
 
     return body;
