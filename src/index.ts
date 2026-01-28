@@ -10,17 +10,30 @@
  * - azure_activitylogalert: Azure Activity Log Alert constructs for operation monitoring
  * - azure_aks: Azure Kubernetes Service constructs with version-aware AZAPI implementation
  * - azure_diagnosticsettings: Azure Diagnostic Settings constructs for monitoring and observability
+ * - azure_dnsforwardingruleset: DNS Forwarding Ruleset constructs for private DNS resolution
+ * - azure_dnsresolver: DNS Resolver constructs for private DNS resolution
+ * - azure_dnszone: Public DNS Zone constructs with DNS record management
  * - azure_metricalert: Azure Metric Alert constructs for metric-based alerting
  * - azure_networkinterface: Network Interface constructs with version-aware AZAPI implementation
  * - azure_networksecuritygroup: Network Security Group constructs with version-aware AZAPI implementation
+ * - azure_policyassignment: Policy Assignment constructs for Azure Policy
+ * - azure_policydefinition: Policy Definition constructs for custom Azure policies
+ * - azure_privatednszone: Private DNS Zone constructs with DNS record management
+ * - azure_privatednszonelink: Private DNS Zone Link constructs for VNet linking
  * - azure_publicipaddress: Public IP Address constructs with version-aware AZAPI implementation
  * - azure_resourcegroup: Resource Group constructs with version-aware AZAPI implementation
+ * - azure_roleassignment: Role Assignment constructs for Azure RBAC
+ * - azure_roledefinition: Role Definition constructs for custom RBAC roles
  * - azure_storageaccount: Storage Account constructs with version-aware AZAPI implementation
  * - azure_subnet: Subnet constructs with version-aware AZAPI implementation
  * - azure_virtualmachine: Virtual Machine constructs with version-aware AZAPI implementation
  * - azure_virtualnetwork: Virtual Network constructs with version-aware AZAPI implementation
+ * - azure_virtualnetworkgateway: Virtual Network Gateway constructs for VPN/ExpressRoute
+ * - azure_virtualnetworkgatewayconnection: VNet Gateway Connection constructs
+ * - azure_virtualnetworkmanager: Virtual Network Manager constructs for network governance
  * - azure_vmss: Virtual Machine Scale Sets constructs with version-aware AZAPI implementation
  * - core_azure: Core AZAPI functionality and base classes
+ * - testing: Test utilities and helpers
  *
  * For migration guide and documentation, see:
  * https://github.com/azure/terraform-cdk-constructs
@@ -46,6 +59,7 @@ export * as azure_networksecuritygroup from "./azure-networksecuritygroup";
 export * as azure_policyassignment from "./azure-policyassignment";
 export * as azure_policydefinition from "./azure-policydefinition";
 export * as azure_privatednszone from "./azure-privatednszone";
+export * as azure_privatednszonelink from "./azure-privatednszonelink";
 export * as azure_publicipaddress from "./azure-publicipaddress";
 export * as azure_resourcegroup from "./azure-resourcegroup";
 export * as azure_roleassignment from "./azure-roleassignment";
