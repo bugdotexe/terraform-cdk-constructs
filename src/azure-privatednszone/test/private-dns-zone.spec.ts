@@ -260,13 +260,9 @@ describe("PrivateDnsZone - Unified Implementation", () => {
       expect(privateDnsZone.nameOutput).toBeDefined();
       expect(privateDnsZone.tagsOutput).toBeDefined();
       expect(privateDnsZone.maxNumberOfRecordSetsOutput).toBeDefined();
-      expect(privateDnsZone.numberOfRecordSetsOutput).toBeDefined();
       expect(privateDnsZone.maxNumberOfVirtualNetworkLinksOutput).toBeDefined();
       expect(
         privateDnsZone.maxNumberOfVirtualNetworkLinksWithRegistrationOutput,
-      ).toBeDefined();
-      expect(
-        privateDnsZone.numberOfVirtualNetworkLinksWithRegistrationOutput,
       ).toBeDefined();
       expect(privateDnsZone.provisioningStateOutput).toBeDefined();
       expect(privateDnsZone.internalIdOutput).toBeDefined();
@@ -284,14 +280,14 @@ describe("PrivateDnsZone - Unified Implementation", () => {
       expect(synthesized).toContain('"name"');
       expect(synthesized).toContain('"tags"');
       expect(synthesized).toContain('"max_number_of_record_sets"');
-      expect(synthesized).toContain('"number_of_record_sets"');
+      // Note: numberOfRecordSets is intentionally NOT exposed as an output because
+      // it's a volatile read-only property that changes when child records are added/removed
       expect(synthesized).toContain('"max_number_of_virtual_network_links"');
       expect(synthesized).toContain(
         '"max_number_of_virtual_network_links_with_registration"',
       );
-      expect(synthesized).toContain(
-        '"number_of_virtual_network_links_with_registration"',
-      );
+      // Note: numberOfVirtualNetworkLinksWithRegistration is intentionally NOT
+      // exposed as an output because it's a volatile read-only property
       expect(synthesized).toContain('"provisioning_state"');
       expect(synthesized).toContain('"internal_id"');
     });

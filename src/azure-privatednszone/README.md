@@ -365,10 +365,266 @@ If you encounter version-related errors:
 2. Consider pinning to a specific version
 3. Review Azure Private DNS API documentation for breaking changes
 
+## DNS Records
+
+Private DNS zones support the following record types for internal name resolution:
+
+### Available Record Types
+
+| Record Type | Class | Description |
+|-------------|-------|-------------|
+| A | `PrivateDnsARecord` | Maps hostname to IPv4 addresses |
+| AAAA | `PrivateDnsAaaaRecord` | Maps hostname to IPv6 addresses |
+| CNAME | `PrivateDnsCnameRecord` | Creates an alias to another hostname |
+| MX | `PrivateDnsMxRecord` | Specifies mail exchange servers |
+| PTR | `PrivateDnsPtrRecord` | Reverse DNS lookup (IP to hostname) |
+| SOA | `PrivateDnsSoaRecord` | Start of Authority record (zone metadata) |
+| SRV | `PrivateDnsSrvRecord` | Service location records |
+| TXT | `PrivateDnsTxtRecord` | Arbitrary text data (SPF, verification, etc.) |
+
+### Common Properties
+
+All record types share these base properties:
+
+| Property | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `name` | string | Yes | - | Record name relative to zone (use `@` for apex) |
+| `privateDnsZoneId` | string | Yes | - | Resource ID of the parent Private DNS Zone |
+| `ttl` | number | No | 3600 | Time to Live in seconds |
+| `metadata` | object | No | - | Key-value pairs for record metadata |
+
+### A Record (IPv4)
+
+Map a hostname to one or more IPv4 addresses:
+
+```typescript
+import { PrivateDnsARecord } from "@microsoft/terraform-cdk-constructs/azure-privatednszone";
+
+// Simple A record
+const webRecord = new PrivateDnsARecord(this, "web-a-record", {
+  name: "www",
+  privateDnsZoneId: privateDnsZone.id,
+  ttl: 300,
+  records: [
+    { ipv4Address: "10.0.1.4" },
+  ],
+});
+
+// A record with multiple IPs (round-robin)
+const apiRecord = new PrivateDnsARecord(this, "api-a-record", {
+  name: "api",
+  privateDnsZoneId: privateDnsZone.id,
+  ttl: 300,
+  records: [
+    { ipv4Address: "10.0.1.10" },
+    { ipv4Address: "10.0.1.11" },
+    { ipv4Address: "10.0.1.12" },
+  ],
+});
+
+// Apex record (zone root)
+const apexRecord = new PrivateDnsARecord(this, "apex-a-record", {
+  name: "@",
+  privateDnsZoneId: privateDnsZone.id,
+  ttl: 3600,
+  records: [
+    { ipv4Address: "10.0.1.100" },
+  ],
+});
+```
+
+### AAAA Record (IPv6)
+
+Map a hostname to one or more IPv6 addresses:
+
+```typescript
+import { PrivateDnsAaaaRecord } from "@microsoft/terraform-cdk-constructs/azure-privatednszone";
+
+const ipv6Record = new PrivateDnsAaaaRecord(this, "web-aaaa-record", {
+  name: "www",
+  privateDnsZoneId: privateDnsZone.id,
+  ttl: 300,
+  records: [
+    { ipv6Address: "2001:db8::1" },
+    { ipv6Address: "2001:db8::2" },
+  ],
+});
+```
+
+### CNAME Record (Alias)
+
+Create an alias from one hostname to another:
+
+```typescript
+import { PrivateDnsCnameRecord } from "@microsoft/terraform-cdk-constructs/azure-privatednszone";
+
+// Alias 'app' to 'www'
+const cnameRecord = new PrivateDnsCnameRecord(this, "app-cname", {
+  name: "app",
+  privateDnsZoneId: privateDnsZone.id,
+  ttl: 3600,
+  cname: "www.internal.contoso.com",
+});
+```
+
+> **Note**: CNAME records cannot coexist with other record types at the same name.
+
+### MX Record (Mail Exchange)
+
+Configure mail servers for the domain:
+
+```typescript
+import { PrivateDnsMxRecord } from "@microsoft/terraform-cdk-constructs/azure-privatednszone";
+
+const mxRecord = new PrivateDnsMxRecord(this, "mail-mx-record", {
+  name: "@",
+  privateDnsZoneId: privateDnsZone.id,
+  ttl: 3600,
+  records: [
+    { preference: 10, exchange: "mail1.internal.contoso.com" },
+    { preference: 20, exchange: "mail2.internal.contoso.com" },
+  ],
+});
+```
+
+Lower `preference` values indicate higher priority mail servers.
+
+### PTR Record (Reverse DNS)
+
+Map IP addresses back to hostnames (used in reverse lookup zones):
+
+```typescript
+import { PrivateDnsPtrRecord } from "@microsoft/terraform-cdk-constructs/azure-privatednszone";
+
+// For reverse zone like "1.0.10.in-addr.arpa"
+const ptrRecord = new PrivateDnsPtrRecord(this, "ptr-record", {
+  name: "4", // Represents 10.0.1.4
+  privateDnsZoneId: reverseZone.id,
+  ttl: 3600,
+  records: [
+    { ptrdname: "server1.internal.contoso.com" },
+  ],
+});
+```
+
+### SRV Record (Service Location)
+
+Specify service locations for protocols like SIP, LDAP, XMPP:
+
+```typescript
+import { PrivateDnsSrvRecord } from "@microsoft/terraform-cdk-constructs/azure-privatednszone";
+
+// SIP service over TCP
+const sipRecord = new PrivateDnsSrvRecord(this, "sip-srv-record", {
+  name: "_sip._tcp",
+  privateDnsZoneId: privateDnsZone.id,
+  ttl: 3600,
+  records: [
+    { priority: 10, weight: 60, port: 5060, target: "sipserver1.internal.contoso.com" },
+    { priority: 10, weight: 40, port: 5060, target: "sipserver2.internal.contoso.com" },
+    { priority: 20, weight: 0, port: 5060, target: "sipbackup.internal.contoso.com" },
+  ],
+});
+
+// LDAP service
+const ldapRecord = new PrivateDnsSrvRecord(this, "ldap-srv-record", {
+  name: "_ldap._tcp",
+  privateDnsZoneId: privateDnsZone.id,
+  ttl: 3600,
+  records: [
+    { priority: 0, weight: 100, port: 389, target: "dc1.internal.contoso.com" },
+  ],
+});
+```
+
+SRV record fields:
+- `priority`: Lower values are preferred (0-65535)
+- `weight`: Load balancing among same-priority records (0-65535)
+- `port`: TCP/UDP port number
+- `target`: Hostname providing the service
+
+### TXT Record (Text)
+
+Store arbitrary text data, commonly used for SPF, DKIM, and verification:
+
+```typescript
+import { PrivateDnsTxtRecord } from "@microsoft/terraform-cdk-constructs/azure-privatednszone";
+
+// SPF record for email authentication
+const spfRecord = new PrivateDnsTxtRecord(this, "spf-txt-record", {
+  name: "@",
+  privateDnsZoneId: privateDnsZone.id,
+  ttl: 3600,
+  records: [
+    { value: ["v=spf1 include:_spf.internal.contoso.com -all"] },
+  ],
+});
+
+// DKIM record for email signing
+const dkimRecord = new PrivateDnsTxtRecord(this, "dkim-txt-record", {
+  name: "selector1._domainkey",
+  privateDnsZoneId: privateDnsZone.id,
+  ttl: 3600,
+  records: [
+    { value: ["v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4..."] },
+  ],
+});
+
+// Service verification
+const verificationRecord = new PrivateDnsTxtRecord(this, "verify-txt-record", {
+  name: "@",
+  privateDnsZoneId: privateDnsZone.id,
+  ttl: 3600,
+  records: [
+    { value: ["google-site-verification=abc123..."] },
+    { value: ["MS=ms12345678"] },
+  ],
+});
+```
+
+> **Note**: TXT record values are arrays of strings. Each string can be up to 255 characters; longer values are automatically split.
+
+### SOA Record (Start of Authority)
+
+Update the zone's SOA record (automatically created with the zone):
+
+```typescript
+import { PrivateDnsSoaRecord } from "@microsoft/terraform-cdk-constructs/azure-privatednszone";
+
+const soaRecord = new PrivateDnsSoaRecord(this, "soa-record", {
+  name: "@",
+  privateDnsZoneId: privateDnsZone.id,
+  ttl: 3600,
+  soaRecord: {
+    email: "admin.contoso.com", // @ symbol replaced with .
+    refreshTime: 3600,    // How often secondaries check for updates
+    retryTime: 300,       // Retry interval if refresh fails
+    expireTime: 2419200,  // When secondaries stop serving zone
+    minimumTtl: 300,      // Minimum TTL for negative caching
+  },
+});
+```
+
+### Record Outputs
+
+All record types provide common outputs:
+
+```typescript
+// Get the record ID
+console.log(aRecord.id);
+
+// Get the FQDN
+console.log(aRecord.fqdn);
+
+// Terraform outputs for use in other modules
+aRecord.idOutput;
+aRecord.nameOutput;
+aRecord.fqdnOutput;
+```
+
 ## Related Constructs
 
-- **Private DNS Zone Virtual Network Link**: (To be implemented) Link private DNS zones to virtual networks
-- **DNS Record Sets**: (To be implemented) Create A, AAAA, CNAME, and other DNS records
+- **Private DNS Zone Virtual Network Link**: Link private DNS zones to virtual networks
 - **Virtual Network**: Required for private DNS zone functionality
 - **Resource Group**: Container for private DNS zone resources
 

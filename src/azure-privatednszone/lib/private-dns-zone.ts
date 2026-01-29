@@ -117,10 +117,14 @@ export class PrivateDnsZone extends AzapiResource {
   public readonly nameOutput: cdktf.TerraformOutput;
   public readonly tagsOutput: cdktf.TerraformOutput;
   public readonly maxNumberOfRecordSetsOutput: cdktf.TerraformOutput;
-  public readonly numberOfRecordSetsOutput: cdktf.TerraformOutput;
+  // Note: numberOfRecordSets is NOT exposed as an output because it's a volatile
+  // read-only property that changes when child records are added/removed, which
+  // would cause Terraform to report output changes on every apply
   public readonly maxNumberOfVirtualNetworkLinksOutput: cdktf.TerraformOutput;
   public readonly maxNumberOfVirtualNetworkLinksWithRegistrationOutput: cdktf.TerraformOutput;
-  public readonly numberOfVirtualNetworkLinksWithRegistrationOutput: cdktf.TerraformOutput;
+  // Note: numberOfVirtualNetworkLinksWithRegistration is NOT exposed as an output
+  // because it's a volatile read-only property that changes when VNet links are
+  // added/removed with registration enabled
   public readonly provisioningStateOutput: cdktf.TerraformOutput;
   public readonly internalIdOutput: cdktf.TerraformOutput;
 
@@ -171,15 +175,8 @@ export class PrivateDnsZone extends AzapiResource {
       },
     );
 
-    this.numberOfRecordSetsOutput = new cdktf.TerraformOutput(
-      this,
-      "number_of_record_sets",
-      {
-        value: `\${${this.terraformResource.fqn}.output.properties.numberOfRecordSets}`,
-        description:
-          "The current number of record sets in this Private DNS zone",
-      },
-    );
+    // Note: numberOfRecordSets output is intentionally NOT created because
+    // it changes when child records are added/removed
 
     this.maxNumberOfVirtualNetworkLinksOutput = new cdktf.TerraformOutput(
       this,
@@ -202,16 +199,8 @@ export class PrivateDnsZone extends AzapiResource {
         },
       );
 
-    this.numberOfVirtualNetworkLinksWithRegistrationOutput =
-      new cdktf.TerraformOutput(
-        this,
-        "number_of_virtual_network_links_with_registration",
-        {
-          value: `\${${this.terraformResource.fqn}.output.properties.numberOfVirtualNetworkLinksWithRegistration}`,
-          description:
-            "The current number of virtual network links with auto-registration in this Private DNS zone",
-        },
-      );
+    // Note: numberOfVirtualNetworkLinksWithRegistration output is intentionally
+    // NOT created because it changes when VNet links are added/removed
 
     this.provisioningStateOutput = new cdktf.TerraformOutput(
       this,
@@ -235,15 +224,11 @@ export class PrivateDnsZone extends AzapiResource {
     this.maxNumberOfRecordSetsOutput.overrideLogicalId(
       "max_number_of_record_sets",
     );
-    this.numberOfRecordSetsOutput.overrideLogicalId("number_of_record_sets");
     this.maxNumberOfVirtualNetworkLinksOutput.overrideLogicalId(
       "max_number_of_virtual_network_links",
     );
     this.maxNumberOfVirtualNetworkLinksWithRegistrationOutput.overrideLogicalId(
       "max_number_of_virtual_network_links_with_registration",
-    );
-    this.numberOfVirtualNetworkLinksWithRegistrationOutput.overrideLogicalId(
-      "number_of_virtual_network_links_with_registration",
     );
     this.provisioningStateOutput.overrideLogicalId("provisioning_state");
     this.internalIdOutput.overrideLogicalId("internal_id");

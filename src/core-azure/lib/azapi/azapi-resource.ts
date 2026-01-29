@@ -940,7 +940,7 @@ export abstract class AzapiResource extends Construct {
     if (this.validationResult?.warnings.length) {
       this.validationResult.warnings.forEach((warning) => {
         console.warn(
-          `${YELLOW}Property validation warning: ${warning}${RESET}`,
+          `${YELLOW}⚠️  Property validation warning: ${warning}${RESET}`,
         );
       });
     }
